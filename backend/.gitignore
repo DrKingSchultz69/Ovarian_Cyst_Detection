@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Model checkpoints are large; distribute them out of band. The negation below
+# re-includes them because the Docker image MUST carry the weights -- the
+# service does not start without them.
+weights/*.pt
+!weights/*.pt
+
+# Generated artifacts: the smoke test, the phantom fixtures, and scratch files
+# from manual endpoint testing. All reproducible from a seed.
+smoke_out.png
+test.jpg
+phantom*.png
+_t_*

@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+README.md
+
+# Test and demo artifacts -- generated on demand, never shipped.
+smoke_out.png
+test.jpg
+phantom*.png
+_t_*.png
+_t_*.json

@@ -1,0 +1,33 @@
+# IMPORTANT: install CPU-only torch FIRST, otherwise pip resolves ultralytics'
+# torch dependency from PyPI and pulls the ~2.5 GB CUDA build:
+#
+#   pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements.txt
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+ultralytics==8.4.121
+
+# headless, not opencv-python: the full build needs libGL.so.1, which is absent
+# from slim server images and fails at import time on Render/Railway/Docker.
+opencv-python-headless==4.10.0.84
+
+# ultralytics 8.3.x raises dtype errors mid-inference against numpy 2.x
+numpy<2
+
+# --- analysis modules -------------------------------------------------------
+# ehr/ (T1-T3). pandas pinned below 3.0: the EHR pipeline relies on 2.x
+# DataFrame.replace semantics for the NaN -> None conversion in main.py.
+pandas==2.2.3
+
+# scikit-learn: KNNImputer and IterativeImputer (ehr/missing.py, T3)
+scikit-learn==1.5.2
+
+# scikit-image: PSNR and SSIM for the compression analysis (compress.py, T4)
+scikit-image==0.24.0
+
+# scipy is a scikit-learn/scikit-image dependency; pinned so the image is
+# reproducible rather than resolving to whatever is current at build time.
+scipy==1.14.1

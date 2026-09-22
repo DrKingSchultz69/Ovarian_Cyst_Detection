@@ -1,0 +1,16 @@
+# ZeroGPU only accepts torch 2.8.0 / 2.9.1 / 2.10.0 / 2.11.0, and supplies CUDA
+# itself -- so no CPU index override here. Inference stays on CPU because
+# nothing is decorated with @spaces.GPU, which is fine at 9.6 GFLOPs.
+torch==2.8.0
+torchvision==0.23.0
+
+gradio==5.9.1
+# pydantic >=2.11 emits `additionalProperties: true` as a bare bool; the
+# gradio_client 1.5.2 schema walker indexes into it and dies with
+# "argument of type 'bool' is not iterable", which 500s the "/" route.
+pydantic==2.10.6
+ultralytics==8.4.121
+opencv-python-headless==4.10.0.84
+python-multipart==0.0.20
+pillow
+numpy<2

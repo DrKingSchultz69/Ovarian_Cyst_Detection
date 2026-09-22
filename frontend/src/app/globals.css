@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+/* The app is dark-only by design: ultrasound is viewed on dark backgrounds so
+ * the eye is not adapting to a bright surround while judging low-echo regions.
+ * The create-next-app light/dark scaffold that used to live here was dead code
+ * -- every page hardcoded #0b0f14 -- and its `font-family: Arial` on body was
+ * silently overriding the Geist fonts wired up in layout.tsx. */
+
+:root {
+  --background: #0b0f14;
+  --foreground: #ededed;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+code,
+pre {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* Tabular figures everywhere a measurement is shown, so columns of numbers
+ * line up and a changing value does not make the row jitter. */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,50 @@
+# Repository-wide ignores. The per-directory .gitignore files under backend/
+# and frontend/ still apply on top of this one.
+
+# --- Python ---------------------------------------------------------------
+# .venv carries CPU torch and ultralytics: several GB, and reproducible from
+# requirements.txt. It must never reach the repository.
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Node / Next ----------------------------------------------------------
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+.vercel/
+
+# --- Environment ----------------------------------------------------------
+# NEXT_PUBLIC_API_URL is per-machine. frontend/.env.local.example is the
+# committed template; the real file stays local.
+.env
+.env.*
+!.env.local.example
+
+# --- Generated artifacts --------------------------------------------------
+# All reproducible: `python -m phantom`, `python smoke_test.py`, the figure
+# script. Regenerating beats reviewing a binary diff.
+smoke_out.png
+phantom*.png
+_t_*
+test.jpg
+figs/
+
+# --- Editor / OS ----------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.idea/
+.vscode/
+
+# --- Local agent config ---------------------------------------------------
+.claude/settings.local.json

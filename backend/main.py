@@ -573,3 +573,60 @@ def _loinc_table() -> list[dict]:
         }
         for code, spec in vocab.LOINC.items()
     ]
+
+
+# ===========================================================================
+# Optional Gradio demo, mounted at "/"
+# ===========================================================================
+#
+# Off by default, on when OVASCAN_MOUNT_GRADIO=1 (the Space Dockerfile sets
+# it). Local development then needs neither gradio nor pillow installed.
+#
+# WHY IT IS MOUNTED RATHER THAN RUN ON ITS OWN
+#     A Gradio-SDK Space runs `python app.py` and Gradio owns the server, so
+#     there is nowhere to put a JSON API -- and the Next.js front end needs
+#     one. Under the Docker SDK, FastAPI owns the server and Gradio becomes a
+#     sub-application. That is why every route above was deliberately kept off
+#     "/": this is what "/" was being saved for.
+#
+# A failure here must never take the API down with it. The demo is a
+# convenience; /predict is the product.
+
+if os.environ.get("OVASCAN_MOUNT_GRADIO") == "1":
+    try:
+        import gradio as gr
+
+        from app import demo as _demo
+
+        # show_api=False: gradio 5.9.1's schema generator crashes on this
+        # Blocks (TypeError: argument of type 'bool' is not iterable in
+        # get_api_info), which 500s the page itself.
+        app = gr.mount_gradio_app(app, _demo, path="/", show_api=False)
+        _GRADIO_MOUNTED = True
+        _GRADIO_ERROR: str | None = None
+    except Exception as exc:  # noqa: BLE001 - the API must survive this
+        _GRADIO_MOUNTED = False
+        _GRADIO_ERROR = f"{type(exc).__name__}: {exc}"
+
+        @app.get("/")
+        def _gradio_unavailable() -> dict:
+            """Stand in for the demo so "/" is not a bare 404."""
+            return {
+                "name": "OvaScan API",
+                "demo": "unavailable",
+                "error": _GRADIO_ERROR,
+                "hint": "The JSON API is unaffected. See GET /api and GET /docs.",
+            }
+else:
+    _GRADIO_MOUNTED = False
+    _GRADIO_ERROR = None
+
+    @app.get("/")
+    def _root_redirect() -> dict:
+        """Local runs have no demo mounted; point the caller at the API."""
+        return {
+            "name": "OvaScan API",
+            "disclaimer": "Research prototype. Not a medical device.",
+            "hint": "Set OVASCAN_MOUNT_GRADIO=1 for the demo UI. "
+                    "See GET /api and GET /docs.",
+        }

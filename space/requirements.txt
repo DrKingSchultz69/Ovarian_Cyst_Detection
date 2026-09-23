@@ -1,16 +1,31 @@
-# ZeroGPU only accepts torch 2.8.0 / 2.9.1 / 2.10.0 / 2.11.0, and supplies CUDA
-# itself -- so no CPU index override here. Inference stays on CPU because
-# nothing is decorated with @spaces.GPU, which is fine at 9.6 GFLOPs.
-torch==2.8.0
-torchvision==0.23.0
+# Install CPU-only torch FIRST -- the Dockerfile does this before reading this
+# file. Without that, pip resolves ultralytics' torch dependency from PyPI and
+# pulls the ~2.5 GB CUDA build.
 
-gradio==5.9.1
-# pydantic >=2.11 emits `additionalProperties: true` as a bare bool; the
-# gradio_client 1.5.2 schema walker indexes into it and dies with
-# "argument of type 'bool' is not iterable", which 500s the "/" route.
-pydantic==2.10.6
-ultralytics==8.4.121
-opencv-python-headless==4.10.0.84
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
 python-multipart==0.0.20
+
+ultralytics==8.4.121
+
+# headless, not opencv-python: the full build needs libGL.so.1 and fails at
+# import on a slim image.
+opencv-python-headless==4.10.0.84
+
+# scipy 1.14.1 declares support for numpy < 2.3 and warns above it.
+numpy<2.3
+
+# --- analysis modules ------------------------------------------------------
+pandas==2.2.3
+scikit-learn==1.5.2
+scikit-image==0.24.0
+scipy==1.14.1
+
+# --- the demo UI mounted at "/" --------------------------------------------
+gradio==5.9.1
+# pydantic >= 2.11 emits `additionalProperties: true` as a bare bool, and the
+# gradio_client 1.5.2 schema walker indexes into it and dies with
+# "argument of type 'bool' is not iterable". Pinning below that keeps the
+# mounted UI's own routes working.
+pydantic==2.10.6
 pillow
-numpy<2

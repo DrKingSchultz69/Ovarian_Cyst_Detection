@@ -204,15 +204,68 @@ model trained on marked images learns the calipers and collapses on unmarked one
 inpainting in [T4](T4-image-processing.md) is not cosmetic — it is what stops the model
 learning a shortcut.
 
-## Honest limits
+## Measured accuracy
 
-- **No accuracy figures are reported here.** Validation mAP was measured in the Kaggle
-  training notebook, which is not in this repository, and quoting numbers this codebase
-  cannot reproduce would be worse than omitting them. Re-running
-  `yolo segment val` against `data.yaml` is the way to regenerate them.
+Reproducible with [`backend/evaluate.py`](../backend/evaluate.py), which scores the
+shipped checkpoint against MMOTU's own `_binary` masks, reading the archive directly:
+
+```bash
+python evaluate.py --zip "archive(1).zip" --n 120
+```
+
+120 validation images, patient-disjoint from training, `conf >= 0.25`:
+
+| | |
+|---|---|
+| mean IoU | **0.704** (median 0.795) |
+| mean Dice | **0.785** (median 0.886) |
+| IoU ≥ 0.50 | 97/120 (81%) |
+| IoU ≥ 0.75 | 76/120 (63%) |
+| complete misses | 4 |
+| sensitivity | 117/120 (98%) |
+| latency, CPU | mean 320 ms, max 837 ms |
+
+### The per-class result is the interesting one
+
+| Class | n | mean IoU |
+|---|---|---|
+| serous cystadenoma | 19 | 0.876 |
+| mucinous cystadenoma | 7 | 0.842 |
+| high grade serous | 2 | 0.775 |
+| teratoma | 36 | 0.769 |
+| simple cyst | 2 | 0.751 |
+| theca cell tumor | 9 | 0.748 |
+| chocolate cyst | 25 | 0.731 |
+| **normal ovary** | **20** | **0.310** |
+
+Every lesion class lands between 0.73 and 0.88. **"Normal ovary" scores 0.310** — less
+than half the next worst.
+
+That is not a training failure, it is a **consequence of the one-class design**. Class 5's
+ground truth is the *ovary*, not a lesion. Collapsing all eight MMOTU types into a single
+`lesion` class therefore asks the model to segment two different targets under one label,
+and it learns the lesion. The supervision is inconsistent.
+
+Excluding class 5, mean IoU is **0.783** against 0.704 overall — so the 18% of the dataset
+labelled "normal" costs ~0.08 on the headline number. Dropping those images, or giving
+them their own class, is the obvious fix and is not currently done.
+
+## What cannot be measured from this dataset
+
+**Specificity and false-positive rate.** Every MMOTU image carries a non-empty mask,
+class 5 included — sampled across 120 of the 267 normal-ovary images, not one was empty
+(median mask area 13,533 px). There are no true negatives, so a detection on a "normal"
+image is correct behaviour, not an error. Any false-positive rate computed here would be
+counting correct detections as mistakes. Measuring one needs images with genuinely empty
+ground truth, which MMOTU does not provide.
+
+## Other limits
+
 - One class, one dataset, one modality.
 - No test-time augmentation, no ensembling, no calibration of the confidence scores —
   so the threshold slider is a raw score cut-off, not a probability.
+- Two of the eight classes have only 2 validation images each, so their per-class means
+  are indicative at best.
 
 ---
 
@@ -225,9 +278,14 @@ CNN       finds the lesion within one frame          (semantics, supervised)
 ```
 
 A complete follow-up comparison uses all three: register with SIFT+RANSAC, segment each
-frame with the CNN, then compare the measurements in the shared coordinate system. The
-project implements the first two together and the third separately; wiring the full
-three-stage comparison is the obvious next step and is **not** currently built.
+frame with the CNN, then compare the measurements in the shared coordinate system. That
+full three-stage pipeline **is** built, as `POST /image/register-and-segment`, and is
+driven from the "Run end-to-end comparison" button on `/registration`.
+
+Measured on the phantom pair: 34 of 49 ratio-tested matches accepted as inliers, both
+frames segmented, and the registered follow-up compared against baseline at
+**+1.59% area** and **+0.33% max diameter** — which is the number a clinician would
+actually act on, and it is only meaningful because the frames share a coordinate system.
 
 ---
 

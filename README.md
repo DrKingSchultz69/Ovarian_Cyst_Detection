@@ -17,11 +17,12 @@ backend/
   compress.py       rate-distortion and measurement-drift analysis    T4
   registration.py   SIFT -> ratio test -> RANSAC -> warp              T5
   phantom.py        synthetic ultrasound fixture (no dataset needed)
+  evaluate.py       IoU/Dice against real MMOTU masks                 T5
   ehr/              generate -> standardize -> clean -> dedupe -> impute  T1-T3
   main.py           FastAPI transport layer over all of the above
 
 frontend/           Next.js 16, four pages, one per topic group       T6
-data_prep/          MMOTU semantic masks -> YOLO polygon labels
+data_prep/          MMOTU masks -> YOLO labels, plus a data-quality audit  T1-T3
 docs/               one writeup per syllabus topic
 ```
 

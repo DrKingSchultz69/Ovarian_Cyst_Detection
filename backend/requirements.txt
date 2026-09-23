@@ -14,8 +14,21 @@ ultralytics==8.4.121
 # from slim server images and fails at import time on Render/Railway/Docker.
 opencv-python-headless==4.10.0.84
 
-# ultralytics 8.3.x raises dtype errors mid-inference against numpy 2.x
-numpy<2
+# The numpy 2 note, corrected.
+#
+# The original pin said "ultralytics 8.3.x raises dtype errors mid-inference
+# against numpy 2.x". That was true of 8.3.x. This project is on 8.4.121, and
+# the published accuracy figures in docs/T5 (IoU 0.704 / Dice 0.785 over 120
+# validation images) were measured on numpy 2.4.6 with no dtype errors at all.
+#
+# The ceiling is kept anyway, for one reason that is not ultralytics: scipy
+# 1.14.1 declares support for numpy < 2.3 and emits a UserWarning above it.
+# Nothing has misbehaved, but a pinned build should not ship a version
+# combination its own dependency says is untested.
+#
+# To reproduce the measured numbers exactly, install numpy 2.4.6 instead and
+# expect that scipy warning.
+numpy<2.3
 
 # --- analysis modules -------------------------------------------------------
 # ehr/ (T1-T3). pandas pinned below 3.0: the EHR pipeline relies on 2.x

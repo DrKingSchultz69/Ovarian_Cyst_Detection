@@ -77,12 +77,25 @@ model.predict(np.zeros((640, 640, 3), np.uint8), verbose=False)  # warm-up
 
 
 def model_info() -> dict[str, Any]:
+    """Public description of the loaded model.
+
+    The absolute path is deliberately NOT here. /health is unauthenticated
+    and this service is meant to be deployed publicly, so returning
+    WEIGHTS_PATH would publish the host's directory layout and, on a
+    developer machine, the operating-system username. The filename is what a
+    caller actually needs -- it identifies which checkpoint is loaded.
+
+    Set OVASCAN_DEBUG_PATHS=1 to get the full path back when diagnosing a
+    weights-resolution problem locally.
+    """
     names = getattr(model, "names", None) or {0: CLASS_NAME}
-    return {
+    info: dict[str, Any] = {
         "weights": os.path.basename(WEIGHTS_PATH),
-        "weights_path": WEIGHTS_PATH,
         "classes": list(names.values()),
     }
+    if os.environ.get("OVASCAN_DEBUG_PATHS") == "1":
+        info["weights_path"] = WEIGHTS_PATH
+    return info
 
 
 # ---------------------------------------------------------------------------
@@ -125,24 +138,64 @@ def measure(mask_u8: np.ndarray, gray: np.ndarray) -> Optional[dict[str, float]]
         return None
 
     c = max(cnts, key=cv2.contourArea)
-    area = float((mask_u8 > 0).sum())
+
+    # TWO AREAS, AND THEY ARE NOT INTERCHANGEABLE.
+    #
+    #   pixel_area    the number of set pixels. What a reader means by "how
+    #                 big is this lesion", so it is what `area_px` reports.
+    #   contour_area  cv2.contourArea: the shoelace area of the polygon
+    #                 through pixel CENTRES. About perimeter/2 smaller,
+    #                 because it cuts half a pixel off all the way round.
+    #
+    # Mixing them silently breaks the dimensionless shape ratios. Measured on
+    # a filled circle, pixel_area / hull_area comes out ABOVE 1.0 -- 1.020 at
+    # r=20, 1.007 at r=50, 1.001 at r=200 -- which is impossible for solidity
+    # by definition, and the error grows as the shape gets smaller or more
+    # convoluted. Circularity had the same defect, hidden by a min(x, 1.0)
+    # clamp that made a wrong number look merely saturated.
+    #
+    # So: report the pixel count, compute the RATIOS from contour geometry,
+    # and keep both conventions on their own side of the fence.
+    pixel_area = float((mask_u8 > 0).sum())
+    contour_area = float(cv2.contourArea(c))
     perimeter = float(cv2.arcLength(c, True))
 
     hull = cv2.convexHull(c)
-    hull_area = float(cv2.contourArea(hull)) or 1.0
+    hull_area = float(cv2.contourArea(hull))
 
     # Max caliper: largest pairwise distance across convex hull vertices.
     hp = hull.reshape(-1, 2).astype(np.float32)
     max_diameter = float(np.sqrt(((hp[:, None, :] - hp[None, :, :]) ** 2).sum(-1)).max())
 
-    circularity = (4 * np.pi * area / (perimeter ** 2)) if perimeter > 0 else 0.0
+    # 4*pi*A/P^2. Analytically 1.0 for a circle and lower as the boundary
+    # lengthens -- but it does NOT reach 1.0 on a raster.
+    #
+    # DIGITISATION BIAS, measured on filled circles: r=20 -> 0.867,
+    # r=50 -> 0.891, r=100 -> 0.893. arcLength traces the staircase pixel
+    # boundary, which is ~6% longer than the true circumference, and the
+    # perimeter is squared, so circularity lands ~11% low and stays there.
+    # Squares are unaffected (0.785 = pi/4 exactly) because their boundary
+    # is axis-aligned and the staircase costs nothing.
+    #
+    # Left uncorrected on purpose. A fudge factor would need a shape prior
+    # this function does not have, and the bias is consistent, so
+    # circularity is still sound for RANKING lesions or tracking one over
+    # time. Read it as relative, not absolute: ~0.89 is the practical
+    # ceiling, not 1.0.
+    circularity = (4 * np.pi * contour_area / perimeter ** 2) if perimeter > 0 else 0.0
+    # Area over its convex hull: 1.0 for a convex shape, lower as it indents.
+    solidity = (contour_area / hull_area) if hull_area > 0 else 0.0
+
     px = gray[mask_u8 > 0]
 
     return {
         "max_diameter_px": round(max_diameter, 1),
-        "area_px": int(area),
-        "circularity": round(float(min(circularity, 1.0)), 3),
-        "solidity": round(area / hull_area, 3),
+        "area_px": int(pixel_area),
+        # Both are ratios in [0, 1] now that the units agree, so neither needs
+        # a clamp. A value above 1 here would mean a real bug, not a rounding
+        # artefact -- leaving them unclamped keeps that signal.
+        "circularity": round(float(circularity), 3),
+        "solidity": round(float(solidity), 3),
         "echo_mean": round(float(px.mean()), 1),
         "echo_sd": round(float(px.std()), 1),
     }

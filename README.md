@@ -1,7 +1,7 @@
 # OvaScan v0.2
 
-Ovarian cyst segmentation in ultrasound, plus the EHR and image-analysis pipelines
-around it. Built for **21CSE428T Healthcare Analytics**, covering tutorial topics
+Ovarian cyst segmentation in ultrasound, plus the enhancement, compression and
+registration analysis around it. Built for **21CSE428T Healthcare Analytics**, covering tutorial topics
 T1–T6.
 
 **Research prototype. Not a medical device. Not for clinical use.**
@@ -18,11 +18,10 @@ backend/
   registration.py   SIFT -> ratio test -> RANSAC -> warp              T5
   phantom.py        synthetic ultrasound fixture (no dataset needed)
   evaluate.py       IoU/Dice against real MMOTU masks                 T5
-  ehr/              generate -> standardize -> clean -> dedupe -> impute  T1-T3
   main.py           FastAPI transport layer over all of the above
 
-frontend/           Next.js 16, four pages, one per topic group       T6
-data_prep/          MMOTU masks -> YOLO labels, plus a data-quality audit  T1-T3
+frontend/           Next.js 16, three pages                           T6
+data_prep/          MMOTU -> YOLO labels, plus two dataset audits      T1-T3
 docs/               one writeup per syllabus topic
 ```
 
@@ -34,17 +33,16 @@ pandas pipeline through HTTP is far slower than debugging it directly.
 
 | Topic | Where |
 |---|---|
-| T1 Understanding EHR | `ehr/vocab.py`, `ehr/generate.py` · `/ehr#t1` |
-| T2 Standardization, cleaning | `ehr/standardize.py`, `ehr/clean.py` · `/ehr#t2` |
-| T3 Redundancy, missing data | `ehr/dedupe.py`, `ehr/missing.py` · `/ehr#t3` |
+| T1–T3 Dataset selection, standardization, redundancy | `data_prep/mmotu_audit.py`, `data_prep/mmotu_image_audit.py` |
 | T4 Enhance, restore, segment, compress | `enhance.py`, `inference.py`, `compress.py` · `/imaging`, `/` |
 | T5 SIFT, RANSAC, CNN | `registration.py`, `inference.py` · `/registration`, `/` |
 | T6 Visualization | `frontend/src/components/Charts.tsx` · all pages |
 
 Full mapping, findings and per-topic writeups: **[`docs/README.md`](docs/README.md)**.
 
-The two halves describe **one cohort** — every synthetic patient owns one MMOTU
-ultrasound, joined on `imaging_studies.scan_stem`.
+T1–T3 are a **dataset** exercise run against the real MMOTU archive; T4–T6 are
+application features. The synthetic EHR cohort that previously backed T1–T3 has been
+removed.
 
 ## Quick start
 
@@ -71,17 +69,17 @@ at **build** time — changing it later needs a rebuild, not a restart.
 
 Only `/predict` needs torch, ultralytics and the checkpoint. Skip them and everything
 else still works — `/health` reports `segmentation_available: false`, `/predict`
-returns 503, and the EHR, enhancement, compression and registration endpoints run
+returns 503, and the enhancement, compression and registration endpoints run
 normally against the built-in phantom.
 
 ```bash
-pip install "numpy<2" pandas opencv-python-headless scikit-image scipy scikit-learn fastapi "uvicorn[standard]" python-multipart
+pip install "numpy<2.3" opencv-python-headless scikit-image scipy fastapi "uvicorn[standard]" python-multipart
 ```
 
 ### Run the pipelines directly
 
 ```bash
-python -m ehr.pipeline
+python data_prep/mmotu_image_audit.py --zip "archive.zip"
 ```
 
 ```bash
@@ -99,20 +97,15 @@ python smoke_test.py test.jpg
 | MMOTU images, YOLO weights | real |
 | ICD-10, LOINC codes | real |
 | SNOMED CT entries | **placeholders**, labelled in `vocab.py` |
-| Patient cohort | **entirely synthetic** — no real patient data |
 | Phantom frames | synthetic; not a wave simulation |
 
-The cohort is synthetic by design: T2 and T3 measure how well defects are *repaired*,
-and that needs the uncorrupted original, which no real extract ships. See
-[`docs/T1`](docs/T1-understanding-ehr.md) for why Synthea and public clinical CSVs were
-considered and rejected.
+T1–T3 are measured against the real dataset — see [`docs/README.md`](docs/README.md).
 
 ## Deployment
 
 [`DEPLOY.md`](DEPLOY.md) — Hugging Face Spaces for the backend, Vercel for the
 frontend. Note that `requirements.txt` and the `Dockerfile` now also carry pandas,
-scikit-learn, scikit-image and scipy, and the image copies `ehr/` and the four new
-modules.
+scikit-image and scipy, and the image copies the analysis modules.
 
 ## Units
 

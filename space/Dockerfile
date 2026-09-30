@@ -33,7 +33,6 @@ COPY --chown=user requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 COPY --chown=user *.py ./
-COPY --chown=user ehr/ ./ehr/
 COPY --chown=user weights/ ./weights/
 
 EXPOSE 7860

@@ -189,8 +189,8 @@ Two decisions worth noting:
 
 **All 8 tumour types collapse to one `lesion` class.** With ~1.4k images, eight-way
 classification would have ~180 examples per class. One-class segmentation is the
-defensible target; the fine-grained label is kept in the EHR record instead
-([T1](T1-understanding-ehr.md)).
+defensible target. The fine-grained label stays in the dataset's own
+`*_cls.txt` files, mapped onto ICD-10 by `data_prep/mmotu_audit.py`.
 
 **The official `train.txt`/`val.txt` split is used, not a random one.** Those are split
 by patient. A random split would put two images of the same ovary in train and val and

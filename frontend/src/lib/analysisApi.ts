@@ -2,13 +2,12 @@
  *
  *  Separate from api.ts on purpose: api.ts owns /predict and its mock, and
  *  these endpoints have no mock. They need a real backend, and they say so
- *  plainly rather than silently returning fixtures -- a mocked EHR pipeline
+ *  plainly rather than silently returning fixtures -- a mocked analysis
  *  would be a mock of a mock, which is not worth the confusion.
  */
 
 import type {
   CompressResponse,
-  EhrResponse,
   EnhanceResponse,
   RegistrationDemo,
   RegistrationResponse,
@@ -127,7 +126,7 @@ export function registrationDemo(
 }
 
 // ---------------------------------------------------------------------------
-// Phantom + EHR
+// Phantom
 // ---------------------------------------------------------------------------
 
 export function registerAndSegment(
@@ -153,17 +152,6 @@ export interface PhantomResponse {
 
 export function getPhantom(seed = 0): Promise<PhantomResponse> {
   return request<PhantomResponse>(`/image/phantom?seed=${seed}`);
-}
-
-export function getEhrPipeline(
-  opts: { nPatients?: number; seed?: number; rows?: number } = {},
-): Promise<EhrResponse> {
-  const query = new URLSearchParams({
-    n_patients: String(opts.nPatients ?? 400),
-    seed: String(opts.seed ?? 7),
-    rows: String(opts.rows ?? 25),
-  });
-  return request<EhrResponse>(`/ehr/pipeline?${query}`);
 }
 
 /** Turn a base64 PNG from any endpoint into a usable <img src>. */

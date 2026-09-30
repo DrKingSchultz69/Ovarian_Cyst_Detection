@@ -2,10 +2,10 @@
 
 How OvaScan covers tutorial topics T1–T6, with a file and a page for each.
 
-> **On the spelling "HER".** The official syllabus writes *"Preprocessing of HER"* in
-> both the Unit-1 description and the tutorial list. It means **EHR** — Electronic
-> Health Records. The syllabus wording is quoted verbatim where it is quoted; every
-> other reference in this project writes EHR.
+> **Scope.** This project covers **Unit-2 (T4–T6)** as application features.
+> Unit-1 (T1–T3) is handled as a *dataset* exercise — selecting a valid dataset,
+> standardising it, and removing redundancy — and lives in `data_prep/` as two
+> audit scripts rather than as pages in the app. See [Unit-1](#unit-1--the-dataset-audits).
 
 ---
 
@@ -13,16 +13,30 @@ How OvaScan covers tutorial topics T1–T6, with a file and a page for each.
 
 | | Topic | Backend | Frontend | Doc |
 |---|---|---|---|---|
-| **T1** | Understanding EHR | [`ehr/vocab.py`](../backend/ehr/vocab.py), [`ehr/generate.py`](../backend/ehr/generate.py) | `/ehr#t1` | [T1](T1-understanding-ehr.md) |
-| **T2** | Standardization, data cleaning | [`ehr/standardize.py`](../backend/ehr/standardize.py), [`ehr/clean.py`](../backend/ehr/clean.py) | `/ehr#t2` | [T2](T2-standardization-and-cleaning.md) |
-| **T3** | Redundant data removal, missing data | [`ehr/dedupe.py`](../backend/ehr/dedupe.py), [`ehr/missing.py`](../backend/ehr/missing.py) | `/ehr#t3` | [T3](T3-redundant-and-missing-data.md) |
 | **T4** | Enhancement, restoration, segmentation, compression | [`enhance.py`](../backend/enhance.py), [`inference.py`](../backend/inference.py), [`compress.py`](../backend/compress.py) | `/imaging`, `/` | [T4](T4-image-processing.md) |
 | **T5** | SIFT, RANSAC, CNN | [`registration.py`](../backend/registration.py), [`inference.py`](../backend/inference.py) | `/registration`, `/` | [T5](T5-sift-ransac-cnn.md) |
 | **T6** | Visualization | [`components/Charts.tsx`](../frontend/src/components/Charts.tsx) | every page | [T6](T6-visualization.md) |
 
-Unit-1 is T1–T3 (the EHR half), Unit-2 is T4–T6 (the biomedical imaging half). They
-describe **one cohort**: every synthetic patient owns one MMOTU ultrasound, joined on
-`imaging_studies.scan_stem`, so the two halves are one project rather than two demos.
+## Unit-1 — the dataset audits
+
+T1–T3 are answered against the **real MMOTU dataset**, not a synthetic cohort:
+
+| Topic | Evidence | Script |
+|---|---|---|
+| **T1** selecting a valid dataset | 1469 images, 8 classes, official patient-split | `data_prep/mmotu_audit.py` |
+| **T2** standardization, cleaning | 859 distinct image sizes; class ids → 5 ICD-10 codes; masks uniformly `[0,1]`; 0 corrupt files | `mmotu_audit.py`, `mmotu_image_audit.py` |
+| **T3** redundancy, missing data | 1469 byte-identical duplicate masks (33.3%); **44 of 469 val images leak into train**; 0 empty masks | `mmotu_image_audit.py` |
+
+```bash
+python data_prep/mmotu_audit.py --zip "archive.zip"
+```
+
+```bash
+python data_prep/mmotu_image_audit.py --zip "archive.zip"
+```
+
+The synthetic EHR cohort that previously backed T1–T3 has been removed: the tutorials
+are about *this dataset*, and the real one turned out to have better material in it.
 
 ---
 
@@ -68,7 +82,7 @@ works. The three analysis pages need no checkpoint and no MMOTU download —
 Each module also runs standalone, no server involved:
 
 ```bash
-python -m ehr.pipeline
+python data_prep/mmotu_image_audit.py --zip "archive.zip"
 ```
 
 ```bash
@@ -88,14 +102,10 @@ sources here are fabricated.
 | YOLOv11n-seg weights | **Real**, trained on MMOTU — `weights/ovascan_burnin1.pt` |
 | ICD-10 and LOINC codes | **Real** and verifiable |
 | SNOMED CT entries | **Placeholders**, labelled as such in `vocab.py` |
-| Patient cohort | **Entirely synthetic** — no real patient data is involved |
 | Phantom ultrasound frames | **Synthetic**, and not a wave simulation |
 
-The cohort is synthetic *by design*, not as a shortcut: T2 and T3 are about recovering
-from defects, and judging a repair needs the original. No de-identified extract ships
-the pre-corruption version of itself. Generating clean data, keeping it as ground
-truth, and then corrupting a copy in recorded ways is what makes every number in T2 and
-T3 measurable instead of asserted.
+T1–T3 are measured against the real dataset. The defects found there were not planted
+by us, which is what makes them worth reporting.
 
 ---
 

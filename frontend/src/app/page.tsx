@@ -15,7 +15,7 @@ import type { PredictResponse } from "@/lib/types";
  *  The burn-in inpainting in the preprocessing panel is the restoration half of
  *  T4; the YOLOv11n-seg masks are both the segmentation half and T5's CNN.
  *  Enhancement and compression live on /imaging, SIFT and RANSAC on
- *  /registration, and the EHR topics on /ehr.
+ *  and /registration.
  */
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);

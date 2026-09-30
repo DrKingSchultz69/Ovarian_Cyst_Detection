@@ -107,15 +107,13 @@ the very histograms that are meant to show what a filter did.
 | `GET /image/register/demo` | 4.3 MB | 3.7 s |
 | `POST /image/enhance` | 4.7 MB | 1.5 s |
 | `POST /image/compress` | 1.8 MB | 5.2 s |
-| `GET /ehr/pipeline` | 46 KB | 3.5 s first call, then cached |
 
 Two consequences for a free-tier host. `POST /image/enhance` moves ~5 MB per request,
 so it is not something to put behind an auto-refreshing control. And
 `POST /image/compress` spends five seconds encoding the same frame at ten quality
 levels plus a binary search per codec — fine on demand, wrong in a loop.
 
-The EHR pipeline is cached per `(n_patients, seed)`, so only the first call pays the
-3.5 s; changing the seed in the UI pays it again.
+
 
 Hit `/health` once before any demo to wake the Space.
 

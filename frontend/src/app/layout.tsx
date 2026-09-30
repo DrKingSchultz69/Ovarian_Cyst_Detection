@@ -18,7 +18,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "OvaScan v0.2",
   description:
-    "Ovarian cyst segmentation and the EHR/imaging pipelines behind it. " +
+    "Ovarian cyst segmentation in ultrasound: enhancement, restoration, " +
+    "registration and visualization. " +
     "Research prototype, not a medical device.",
 };
 
@@ -38,8 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 
         <footer className="mx-auto w-full max-w-6xl px-4 py-6 text-xs leading-relaxed text-white/30">
           OvaScan v0.2 · YOLOv11n-seg · academic prototype for 21CSE428T Healthcare Analytics.
-          Not a medical device. Not for clinical use. No image is stored. The EHR cohort is
-          entirely synthetic — no real patient data is involved.
+          Not a medical device. Not for clinical use. No image is stored.
         </footer>
       </body>
     </html>

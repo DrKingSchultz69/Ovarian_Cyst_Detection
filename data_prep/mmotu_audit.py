@@ -1,25 +1,17 @@
 """Audit the MMOTU OTU_2d release as a DATA QUALITY exercise -- T1, T2, T3 on
-the real dataset, alongside the synthetic cohort in backend/ehr/.
+the real MMOTU release.
 
 WHY THIS EXISTS
-    backend/ehr/ covers T1-T3 against a synthetic cohort, because judging a
-    repair needs the uncorrupted original and no real extract ships one. The
-    fair criticism of that is that it is fabricated. This module answers it:
-    MMOTU carries its own small structured record -- image, mask, class label,
-    split assignment -- and that record has real defects, which are measured
-    here rather than asserted.
-
-    The two are complementary, and the split is deliberate:
-
-      real (here)        finds the defects that actually exist, and proves
-                         the checks run against something nobody planted
-      synthetic (ehr/)   supplies the defects MMOTU does NOT have -- unit
-                         mismatches, date drift, impossible values, three
-                         missingness mechanisms -- so cleaning and imputation
-                         can be demonstrated and scored at all
+    T1-T3 are a dataset exercise: choose a valid dataset, standardise it, and
+    remove what is redundant. MMOTU carries its own small structured record --
+    image, mask, class label, split assignment -- and that record has real
+    defects. They are measured here rather than asserted, and nobody planted
+    them, which is what makes them worth reporting.
 
     Run this first. It reads the zip index only, so it needs no extraction and
-    no 170 MB on disk.
+    no 170 MB on disk. Then run mmotu_image_audit.py, which decodes the pixels
+    and finds what an index cannot see -- including near-duplicate scans that
+    leak across the official train/val split.
 
         python mmotu_audit.py --zip "archive(1).zip"
         python mmotu_audit.py --root path/to/MMOTU/OTU_2d
@@ -46,8 +38,7 @@ import zipfile
 from typing import Iterable
 
 # MMOTU class id -> the dataset's own tumour-type label. The mapping onto
-# ICD-10 lives in backend/ehr/vocab.py; keeping the local labels here and the
-# standard codes there is the T2 separation, not duplication.
+# Mapping these local labels onto ICD-10 is the T2 terminology-binding step.
 MMOTU_CLASSES = {
     0: "chocolate cyst",
     1: "serous cystadenoma",
@@ -262,7 +253,7 @@ def report(a: Audit) -> str:
         worst = min(a.class_counts.values())
         best = max(a.class_counts.values())
         lines.append(f"  imbalance ratio (max/min)     {best / max(worst, 1):.1f}x")
-        lines.append("  these 8 local labels map onto 5 ICD-10 codes in backend/ehr/vocab.py")
+        lines.append("  these 8 local labels collapse onto 5 ICD-10 codes (T2 binding)")
 
     head("T3  redundant data")
     lines.append(f"  _binary / _binary_binary pairs        {len(a.binary & a.binary_binary)}")
@@ -288,30 +279,10 @@ def report(a: Audit) -> str:
         lines.append("     itself the finding: the CHECKS are the deliverable, and")
         lines.append("     a clean result is only meaningful because they ran.")
 
-    head("why the synthetic cohort still exists")
-    lines.append("  MMOTU has no units, no dates, no free-text diagnoses, no patient")
-    lines.append("  identifiers and no missing values -- so it cannot demonstrate unit")
-    lines.append("  conversion, date parsing, record linkage or imputation at all.")
-    lines.append("  backend/ehr/ supplies those against a cohort whose defects are")
-    lines.append("  known, and joins to these images on imaging_studies.scan_stem.")
-
-    return "\n".join(lines)
+    head("what this pass cannot see")
+    lines.append("  This audit reads the zip index only -- names, sizes, CRC32 -- and never")
+    lines.append("  decodes an image. Dimensions, colour mode, corrupt files, empty masks and")
+    lines.append("  near-duplicate SCANS are invisible to it. Run mmotu_image_audit.py for")
+    lines.append("  those; it is the one that finds the train/val leakage.")
 
 
-def main(argv: Iterable[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--zip", dest="zip_path", help="path to the MMOTU archive")
-    ap.add_argument("--root", dest="root_dir", help="path to an extracted MMOTU/OTU_2d")
-    ap.add_argument("--zip-root", default="MMOTU/OTU_2d/",
-                    help="prefix inside the archive (default: MMOTU/OTU_2d/)")
-    args = ap.parse_args(list(argv) if argv is not None else None)
-
-    if not args.zip_path and not args.root_dir:
-        ap.error("pass --zip or --root")
-
-    print(report(audit(args.zip_path, args.root_dir, args.zip_root)))
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

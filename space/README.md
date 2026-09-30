@@ -12,8 +12,6 @@ license: mit
 # OvaScan — ovarian cyst segmentation
 
 **Research prototype. Not a medical device. Not for clinical use.**
-The EHR cohort served by `/ehr/pipeline` is entirely synthetic — no real patient
-data is involved.
 
 This Space runs the full FastAPI service, with the Gradio demo mounted at `/`.
 
@@ -29,7 +27,6 @@ This Space runs the full FastAPI service, with the Gradio demo mounted at `/`.
 | `/image/register-and-segment` | register, segment both frames, compare |
 | `/image/register/demo` | scored against a known transform |
 | `/image/phantom` | synthetic ultrasound frame, no dataset needed |
-| `/ehr/pipeline` | generate → standardize → clean → dedupe → impute (T1–T3) |
 
 Built for 21CSE428T Healthcare Analytics. Source and per-topic writeups:
 <https://github.com/DrKingSchultz69/Ovarian_Cyst_Detection>

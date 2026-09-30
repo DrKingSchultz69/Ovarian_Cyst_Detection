@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 /** Run an async function when its dependencies change, with cancellation.
  *
  *  WHY THIS EXISTS, beyond tidiness. Four pages fetch from the API when a
- *  control changes -- the EHR seed, the registration rotation, the codec. The
+ *  control changes -- the registration rotation, the phantom seed, the codec. The
  *  naive effect has a race: change the seed three times quickly and three
  *  requests are in flight, so the one that RESOLVES last wins rather than the
  *  one requested last. On a 3.5-second endpoint that is easy to hit, and the

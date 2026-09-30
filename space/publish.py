@@ -3,7 +3,7 @@
 WHY A SCRIPT AND NOT A CHECKED-IN COPY
     The Space needs the backend modules beside its Dockerfile, because a Space
     builds from its own repository root. Keeping a second copy of
-    inference.py, ehr/ and the weights inside space/ is how those copies go
+    inference.py and the weights inside space/ is how those copies go
     stale -- and they had: space/inference.py was an August snapshot, predating
     the solidity and /health path fixes, so the deployed Space would have
     served known-buggy measurements.
@@ -50,7 +50,7 @@ BACKEND_FILES = [
     "main.py", "inference.py", "enhance.py", "compress.py",
     "registration.py", "phantom.py", "evaluate.py",
 ]
-BACKEND_DIRS = ["ehr", "weights"]
+BACKEND_DIRS = ["weights"]
 
 
 def assemble(dest: str) -> list[str]:

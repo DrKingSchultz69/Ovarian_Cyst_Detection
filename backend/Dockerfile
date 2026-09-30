@@ -28,8 +28,6 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 COPY --chown=user inference.py main.py ./
 # T4/T5 analysis modules and the synthetic-ultrasound fixture.
 COPY --chown=user enhance.py compress.py registration.py phantom.py ./
-# T1-T3 EHR pipeline.
-COPY --chown=user ehr/ ./ehr/
 COPY --chown=user weights/ ./weights/
 
 EXPOSE 7860

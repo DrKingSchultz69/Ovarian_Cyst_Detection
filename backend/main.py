@@ -8,7 +8,7 @@ response. Keeping the split means every module can be debugged in a REPL.
   enhance.py       enhancement           (T4 enhancement)
   compress.py      compression analysis  (T4 compression)
   registration.py  SIFT + RANSAC         (T5)
-  ehr/             EHR pipeline          (T1, T2, T3)
+  evaluate.py      IoU/Dice vs MMOTU     (T5)
 
 Run:  uvicorn main:app --reload --port 8000
 Docs: http://localhost:8000/docs
@@ -32,7 +32,7 @@ import registration
 
 # inference.py loads the YOLO checkpoint at import and raises without it. That
 # is correct for /predict and wrong for everything else: the enhancement,
-# compression, registration and EHR endpoints need neither torch nor weights,
+# compression and registration endpoints need neither torch nor weights,
 # and a grader without the 6 MB checkpoint should still get a working service.
 # So the failure is captured rather than propagated, and only /predict reports
 # it -- as a 503, which is what "this instance cannot serve this route" means.
@@ -48,7 +48,7 @@ app = FastAPI(
     version="0.2.0",
     description=(
         "Research prototype for ovarian cyst segmentation in ultrasound images, "
-        "plus the EHR and image-analysis pipelines. "
+        "plus the enhancement, compression and registration pipelines. "
         "Not a medical device. Not for clinical use."
     ),
 )
@@ -130,13 +130,9 @@ def root() -> dict:
             "register": "POST /image/register",
             "register_and_segment": "POST /image/register-and-segment",
             "phantom": "GET /image/phantom",
-            "ehr": "GET /ehr/pipeline",
             "docs": "GET /docs",
         },
         "topics": {
-            "T1": "GET /ehr/pipeline -> source, coding systems",
-            "T2": "GET /ehr/pipeline -> standardize, clean",
-            "T3": "GET /ehr/pipeline -> dedupe, missing",
             "T4": "POST /image/enhance, POST /image/compress, POST /predict",
             "T5": "POST /image/register (SIFT/RANSAC), POST /predict (CNN)",
             "T6": "annotated overlays and panels on every image endpoint",
@@ -154,8 +150,8 @@ async def predict(
         raise HTTPException(
             status_code=503,
             detail=f"Segmentation model unavailable: {_INFERENCE_ERROR}. "
-                   f"The enhancement, compression, registration and EHR "
-                   f"endpoints do not need it and still work.",
+                   f"The enhancement, compression and registration endpoints "
+                   f"do not need it and still work.",
         )
 
     # Reject the obvious wrong thing before spending a model pass on it.
@@ -467,112 +463,6 @@ def register_demo(
                 "known one. Compare it against rmse_px -- they disagree, and "
                 "the disagreement is the lesson.",
     }
-
-
-# ===========================================================================
-# T1-T3 -- EHR pipeline
-# ===========================================================================
-
-# The pipeline takes a couple of seconds and is deterministic in its seed, so
-# the result is cached per (n_patients, seed). Without this, every panel the
-# frontend renders would re-run the whole thing.
-_EHR_CACHE: dict[tuple[int, int], dict] = {}
-
-
-def _frame(df, limit: int | None = None) -> list[dict]:
-    """DataFrame -> JSON-safe records, NaN replaced with None."""
-    subset = df.head(limit) if limit else df
-    return subset.replace({np.nan: None}).to_dict(orient="records")
-
-
-@app.get("/ehr/pipeline")
-def ehr_pipeline(
-    n_patients: int = Query(400, ge=50, le=2000),
-    seed: int = Query(7, ge=0, le=9999),
-    rows: int = Query(25, ge=1, le=200, description="Sample rows per table"),
-) -> JSONResponse:
-    """The whole T1-T3 pipeline: generate, standardize, clean, dedupe, impute.
-
-    Every stage is returned -- reports plus a sample of each table -- so the
-    UI can show before/after pairs without re-running anything.
-    """
-    from ehr import pipeline as ehr_pipeline_module
-
-    key = (n_patients, seed)
-    if key not in _EHR_CACHE:
-        result = ehr_pipeline_module.run(n_patients=n_patients, seed=seed)
-
-        reports = result.reports
-        _EHR_CACHE[key] = {
-            "ok": True,
-            "params": {"n_patients": n_patients, "seed": seed},
-
-            # T1 -- what arrived, and the coding systems in play
-            "source": dict(reports["source"]),
-            "coding_systems": {
-                "icd10": _icd10_table(),
-                "loinc": _loinc_table(),
-                "note": "ICD-10 and LOINC codes are real. The SNOMED entries "
-                        "in vocab.py are labelled placeholders.",
-            },
-
-            # T2 -- standardization then cleaning
-            "standardize": {k: dict(v) for k, v in reports["standardize"].items()},
-            "clean": dict(reports["clean"]),
-            "flags": _frame(result.flags, rows),
-
-            # T3 -- dedupe then missing data
-            "dedupe": dict(reports["dedupe"]),
-            "dedupe_evaluation": dict(reports["dedupe_evaluation"]),
-            "match_pairs": _frame(result.match_pairs, rows),
-            "missing": dict(reports["missing"]),
-            "missing_profile": _frame(reports["missing_profile"]),
-            "mechanism_diagnostics": {
-                name: _frame(table)
-                for name, table in reports["mechanism_diagnostics"].items()
-            },
-            "imputation_comparison": _frame(reports["imputation_comparison"]),
-
-            # Samples, for the before/after tables
-            "samples": {
-                "raw_patients": _frame(result.raw["patients"], rows),
-                "raw_observations": _frame(result.raw["observations"], rows),
-                "standardised_patients": _frame(result.standardised["patients"], rows),
-                "standardised_observations": _frame(
-                    result.standardised["observations"], rows),
-                "imaging_studies": _frame(result.standardised["imaging_studies"], rows),
-            },
-        }
-
-    return JSONResponse(_EHR_CACHE[key])
-
-
-def _icd10_table() -> list[dict]:
-    from ehr import vocab
-    by_code: dict[str, list[str]] = {}
-    for text, code in vocab.DIAGNOSIS_SYNONYMS.items():
-        by_code.setdefault(code, []).append(text)
-    return [
-        {"code": code, "display": display, "local_synonyms": sorted(by_code.get(code, []))}
-        for code, display in vocab.ICD10.items()
-    ]
-
-
-def _loinc_table() -> list[dict]:
-    from ehr import vocab
-    by_code: dict[str, list[str]] = {}
-    for text, code in vocab.LOCAL_TEST_TO_LOINC.items():
-        by_code.setdefault(code, []).append(text)
-    return [
-        {
-            "code": code,
-            "display": spec["display"],
-            "canonical_unit": spec["canonical_unit"],
-            "plausible_range": list(spec["plausible"]),
-            "local_names": sorted(by_code.get(code, [])),
-        }
-        for code, spec in vocab.LOINC.items()
-    ]
 
 
 # ===========================================================================

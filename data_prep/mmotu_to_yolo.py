@@ -5,8 +5,25 @@ external contours, normalises them to [0,1] and writes Ultralytics segmentation
 label files. All 8 tumour types collapse to a single `lesion` class, matching
 the one-class model.
 
-The official train.txt / val.txt are used for the split -- they are split by
-patient, so no patient appears in both. A random split would leak.
+The official train.txt / val.txt are used for the split. A random split would
+certainly leak, so the official one is the better choice -- but it is NOT
+leak-free, and an earlier version of this note claimed it was.
+
+MEASURED (data_prep/mmotu_image_audit.py, all 1469 images):
+    31 image pairs share an identical perceptual hash
+    106 pairs are near-duplicates (Hamming <= 5 of a 64-bit pHash)
+    48 of those pairs straddle the train/val boundary
+    44 of the 469 validation images -- 9.4% -- have a near-duplicate in train
+
+    Verified against pixels, not just the hash: those pairs run MAE 5-13 on a
+    0-255 scale with correlation 0.88-0.98, at slightly different crops. They
+    are the same scan stored twice under consecutive ids (1268/1269,
+    1430/1431, 144/146 ...), not hash collisions.
+
+The ids are disjoint, which is all an id-level check can confirm; the IMAGES
+are not. Any metric measured on the official val split is therefore optimistic
+by an unknown amount, and the honest fix is to drop the contaminated val ids
+before evaluating rather than to re-split at random.
 
 Kaggle:  exec(open('mmotu_to_yolo.py').read())   or paste as a cell.
 Local:   python mmotu_to_yolo.py --root <MMOTU/OTU_2d> --out <ova_yolo>
